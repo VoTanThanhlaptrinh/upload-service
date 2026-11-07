@@ -29,7 +29,27 @@ function sendError(res: Response, error: unknown) {
     });
     return;
   }
-  res.status(400).json({ success: false, message: error instanceof Error ? error.message : 'Unknown error' });
+  const message = error instanceof Error ? error.message : 'Unknown error';
+
+  // Errors coming from the storage SDK (R2/S3) are not the client's fault, unless the object is missing.
+  const e = error as { name?: string; code?: string; $metadata?: { httpStatusCode?: number } };
+  if (e && typeof e === 'object' && e.$metadata) {
+    if (e.name === 'NoSuchKey' || e.name === 'NotFound' || e.$metadata.httpStatusCode === 404) {
+      res.status(404).json({ success: false, message: 'File not found in storage' });
+      return;
+    }
+    console.error('[file-service] Storage error:', error);
+    res.status(502).json({ success: false, message: 'Storage service error, please try again later' });
+    return;
+  }
+  const networkCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN'];
+  if (e && (networkCodes.includes(e.code ?? '') || e.name === 'TimeoutError')) {
+    console.error('[file-service] Storage unreachable:', error);
+    res.status(503).json({ success: false, message: 'Storage service unavailable, please try again later' });
+    return;
+  }
+
+  res.status(400).json({ success: false, message });
 }
 
 // ==========================================
