@@ -5,3 +5,4 @@ dist/
 scripts/.api-state.json
 postman/
 scripts/
+.vercel
