@@ -33,6 +33,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-app.listen(Number(env.PORT), () => {
-  console.log(`[file-service] Running at http://localhost:${env.PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(Number(env.PORT), () => {
+    console.log(`[file-service] Running at http://localhost:${env.PORT}`);
+  });
+}
+
+export default app;
